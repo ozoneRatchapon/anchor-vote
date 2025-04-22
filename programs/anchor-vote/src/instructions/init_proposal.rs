@@ -1,11 +1,14 @@
 use crate::state::{Dao, Proposal};
 use anchor_lang::prelude::*;
-use anchor_spl::token::TokenAccount;
+use anchor_spl::token::{Token, TokenAccount};
 
 #[derive(Accounts)]
 pub struct InitProposal<'info> {
     #[account(mut)]
     pub creator: Signer<'info>,
+    #[account(
+        constraint = dao_account.authority == creator.key()
+    )]
     pub dao_account: Account<'info, Dao>,
     #[account(
         init,
@@ -15,6 +18,7 @@ pub struct InitProposal<'info> {
         bump
     )]
     pub proposal: Account<'info, Proposal>,
+    pub token_program: Program<'info, Token>,
     pub creator_token_account: Account<'info, TokenAccount>,
     pub system_program: Program<'info, System>,
 }

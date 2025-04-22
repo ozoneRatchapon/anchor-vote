@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::TokenAccount;
+use anchor_spl::token::{Token, TokenAccount};
 
 pub use crate::state::{Dao, Proposal, Vote};
 
@@ -7,6 +7,9 @@ pub use crate::state::{Dao, Proposal, Vote};
 pub struct CastVote<'info> {
     #[account(mut)]
     pub voter: Signer<'info>,
+    #[account(
+        constraint = proposal.authority == dao.authority
+    )]
     pub proposal: Account<'info, Proposal>,
     #[account(mut)]
     pub dao: Account<'info, Dao>,
@@ -22,7 +25,7 @@ pub struct CastVote<'info> {
         bump
     )]
     pub vote_account: Account<'info, Vote>,
-
+    pub token_program: Program<'info, Token>,
     #[account(
         token::authority = voter,
     )]
@@ -37,6 +40,14 @@ impl CastVote<'_> {
 
         let vote_credits = (self.creator_token_account.amount as f64).sqrt() as u64;
 
+        // Update proposal vote counts based on vote type
+        if vote_type == 0 {
+            self.proposal.yes_vote_count += vote_credits;
+        } else if vote_type == 1 {
+            self.proposal.no_vote_count += vote_credits;
+        } else {
+            return Err(ProgramError::InvalidArgument.into());
+        }
         vote_account.set_inner(Vote {
             authority: self.voter.key(),
             vote_type,
